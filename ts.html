@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gráficos ThingSpeak</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 16px; }
+    .container { max-width: 900px; margin: auto; }
+    .grafico { margin-bottom: 32px; }
+    .caixa { position: relative; height: 300px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="grafico">
+    <h3 id="titulo1">A carregar...</h3>
+    <div class="caixa"><canvas id="grafico1"></canvas></div>
+  </div>
+
+  <div class="grafico">
+    <h3 id="titulo2">A carregar...</h3>
+    <div class="caixa"><canvas id="grafico2"></canvas></div>
+  </div>
+
+</div>
+
+<script>
+  // ===== CONFIGURAÇÃO =====
+  const CHANNEL_ID = "3213068";      // o teu canal
+  const READ_KEY = "8BQHQSU6J5WKGB0C";              // só se o canal for privado
+  const RESULTS = 100;
+
+  const GRAFICOS = [
+    { canvas: "grafico1", titulo: "titulo1", field: 1, cor: "#d62020" },
+    { canvas: "grafico2", titulo: "titulo2", field: 2, cor: "#2080d6" }
+  ];
+  // ========================
+
+  const charts = {};
+
+  async function atualizar(g) {
+    let url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/fields/${g.field}.json?results=${RESULTS}&timezone=Europe/Lisbon`;
+    if (READ_KEY) url += `&api_key=${READ_KEY}`;
+
+    const resp = await fetch(url);
+    const json = await resp.json();
+    const nome = json.channel[`field${g.field}`] || `Campo ${g.field}`;
+
+    document.getElementById(g.titulo).textContent = nome;
+
+    const dados = json.feeds
+      .filter(f => f[`field${g.field}`] !== null)
+      .map(f => ({ x: new Date(f.created_at), y: parseFloat(f[`field${g.field}`]) }));
+
+    if (!charts[g.canvas]) {
+      charts[g.canvas] = new Chart(document.getElementById(g.canvas), {
+        type: "line",
+        data: {
+          datasets: [{
+            label: nome,
+            data: dados,
+            borderColor: g.cor,
+            backgroundColor: g.cor + "22",
+            pointRadius: 2,
+            tension: 0.2,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: "time",
+              time: {
+                tooltipFormat: "dd/MM/yyyy HH:mm",
+                displayFormats: { minute: "HH:mm", hour: "HH:mm", day: "dd/MM" }
+              }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } else {
+      charts[g.canvas].data.datasets[0].data = dados;
+      charts[g.canvas].update();
+    }
+  }
+
+  function atualizarTodos() {
+    GRAFICOS.forEach(g => atualizar(g).catch(e => console.error(e)));
+  }
+
+  atualizarTodos();
+  setInterval(atualizarTodos, 15000);
+</script>
+</body>
+</html>
