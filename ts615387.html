@@ -36,8 +36,8 @@
   const RESULTS = 100;
 
   const GRAFICOS = [
-    { canvas: "grafico1", titulo: "titulo1", field: 1, cor: "#d62020" },
-    { canvas: "grafico2", titulo: "titulo2", field: 2, cor: "#2080d6" }
+    { canvas: "grafico1", titulo: "titulo1", field: 1, cor: "#d62020", nome: "Temperatura", unidade: "º" },
+    { canvas: "grafico2", titulo: "titulo2", field: 2, cor: "#2080d6", nome: "Humidade",    unidade: "%" }
   ];
   // ========================
 
@@ -49,20 +49,22 @@
 
     const resp = await fetch(url);
     const json = await resp.json();
-    const nome = json.channel[`field${g.field}`] || `Campo ${g.field}`;
-
-    document.getElementById(g.titulo).textContent = nome;
 
     const dados = json.feeds
       .filter(f => f[`field${g.field}`] !== null)
       .map(f => ({ x: new Date(f.created_at), y: parseFloat(f[`field${g.field}`]) }));
+
+    // Título com o último valor lido
+    const ultimo = dados.length ? dados[dados.length - 1].y : null;
+    const textoValor = ultimo !== null ? ultimo.toFixed(1) + g.unidade : "--";
+    document.getElementById(g.titulo).textContent = `${g.nome} (${textoValor})`;
 
     if (!charts[g.canvas]) {
       charts[g.canvas] = new Chart(document.getElementById(g.canvas), {
         type: "line",
         data: {
           datasets: [{
-            label: nome,
+            label: g.nome,
             data: dados,
             borderColor: g.cor,
             backgroundColor: g.cor + "22",
